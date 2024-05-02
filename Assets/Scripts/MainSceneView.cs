@@ -1,8 +1,9 @@
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GameManager : MonoBehaviour
+public class MainSceneView : MonoBehaviour
 {
     private readonly string startRecordingText = "Start Recording";
     private readonly string stopRecordingText = "Stop Recording";
@@ -13,6 +14,8 @@ public class GameManager : MonoBehaviour
     private RecordingService recordingService;
     [SerializeField]
     private PlaybackService playbackService;
+    [SerializeField]
+    private SceneManager sceneManager;
 
     [SerializeField]
     private FixedJoystick joystick;
@@ -31,17 +34,31 @@ public class GameManager : MonoBehaviour
     private TMP_Text startStopRecordingText;
     [SerializeField]
     private Button playSelectedRecordingButton;
+    [SerializeField]
+    private Button playInNewSceneButton;
 
     private void Awake()
     {
-        recordingButton.onClick.AddListener(StartStopRecording);
+        recordingButton.onClick.AddListener(ToogleRecording);
         previewCurrentRecordingButton.onClick.AddListener(PreviewCurrentRecording);
         saveCurrentRecordingButton.onClick.AddListener(SaveCurrentRecording);
         loadAllRecordingsButton.onClick.AddListener(LoadAllRecordings);
         playSelectedRecordingButton.onClick.AddListener(StartRecordingPlayback);
+        playInNewSceneButton.onClick.AddListener(PlayInNewScene);
+        recordingsDropdown.onValueChanged.AddListener(OnDropDownValueChanged);
     }
 
-    private void StartStopRecording()
+    private void Start()
+    {
+        LoadAllRecordings();
+    }
+
+    private void OnDropDownValueChanged(int value)
+    {
+        recordingService.UpdateCurrentRecording(value);
+    }
+
+    private void ToogleRecording()
     {
         recordingService.IsRecording = !recordingService.IsRecording;
         startStopRecordingText.text = recordingService.IsRecording ? stopRecordingText : startRecordingText;
@@ -74,8 +91,16 @@ public class GameManager : MonoBehaviour
 
     private void StartRecordingPlayback()
     {
-        if (recordingService.IsRecornigsExist() && !recordingService.IsRecording)
+        if (recordingService.IsRecordigsExist() && !recordingService.IsRecording)
             playbackService.StartPlayback(recordingService.GetRecordingByIndex(recordingsDropdown.value));
+    }
+
+    private void PlayInNewScene()
+    {
+        string currentRecordingName = recordingsDropdown.options[recordingsDropdown.value].text;
+        string currentRecordingPath = Path.Combine(recordingService.RecordingsPath, currentRecordingName + ".json");
+        sceneManager.OpenRecordingInNewScene(currentRecordingPath);
+        
     }
 
     private void Update()
@@ -86,10 +111,12 @@ public class GameManager : MonoBehaviour
 
     private void UpdateRecordingDropdown()
     {
+        if (recordingsDropdown == null)
+            return;
         recordingsDropdown.options.Clear();
-        var recordings = recordingService.GetAllRecordings();
-        for (int i = 0, count = recordings.Count; i < count; i++)
-            recordingsDropdown.options.Add(new TMP_Dropdown.OptionData() { text = i.ToString() });
+        var recordingNames = recordingService.GetAllRecordings().Keys;
+        foreach (var recordingName in recordingNames)
+            recordingsDropdown.options.Add(new TMP_Dropdown.OptionData() { text = recordingName });
 
         recordingsDropdown.value = recordingsDropdown.options.Count;
     }

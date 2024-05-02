@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -11,25 +12,21 @@ public class PlaybackService : MonoBehaviour
 
     private Transform cameraTransform;
 
-    private void Awake()
-    {
-        cameraTransform = transform;
-    }
-
-    public void StartPlayback(List<CameraStep> currentRecording)
+    public void StartPlayback(List<CameraStep> currentRecording, Action callback = null)
     {
         IsPlaying = true;
-        StartCoroutine(Play(currentRecording));
+        cameraTransform = Camera.main.transform;
+        StartCoroutine(Play(currentRecording, callback));
     }
 
-    private IEnumerator Play(List<CameraStep> currentRecording)
+    private IEnumerator Play(List<CameraStep> currentRecording, Action callback = null)
     {
         if (IsPlaying)
         {
             for (int i = 0, count = currentRecording.Count; i < count; i++)
             {
                 CameraStep cameraStep = currentRecording[i];
-                float distanceToStep = Vector3.Distance(transform.position, cameraStep.Position);
+                float distanceToStep = Vector3.Distance(cameraTransform.position, cameraStep.Position);
                 float playbackDuration = distanceToStep / (playbackSpeed * Time.deltaTime);
                 float playbackStartTime = Time.time;
 
@@ -42,6 +39,8 @@ public class PlaybackService : MonoBehaviour
                 cameraTransform.SetPositionAndRotation(cameraStep.Position, cameraStep.Rotation);
             }
             IsPlaying = false;
+            yield return new WaitForSeconds(1);
+            callback?.Invoke();
         }
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Linq;
 
 public class RecordingService : MonoBehaviour
 {
@@ -21,17 +22,18 @@ public class RecordingService : MonoBehaviour
     private Vector3 lastPosition;
     private Quaternion lastRotation;
 
-    private List<List<CameraStep>> recordings;
+    private Dictionary<string,List<CameraStep>> recordings;
 
-    private string recordingsPath;
+    [HideInInspector]
+    public string RecordingsPath;
 
     private void Awake()
     {
         currentRecording = new List<CameraStep>();
-        recordings = new List<List<CameraStep>>();
+        recordings = new Dictionary<string, List<CameraStep>>();
         cameraTransform = transform;
 
-        recordingsPath = Application.persistentDataPath + "/Recordings";
+        RecordingsPath = Application.persistentDataPath + "/Recordings";
     }
 
     public void StartRecording()
@@ -51,7 +53,7 @@ public class RecordingService : MonoBehaviour
 
     public List<CameraStep> GetRecordingByIndex(int index)
     {
-        return recordings[index];
+        return recordings.ElementAt(index).Value;
     }
 
     public List<CameraStep> GetCurrentRecording()
@@ -59,7 +61,7 @@ public class RecordingService : MonoBehaviour
         return currentRecording;
     }
 
-    public bool IsRecornigsExist()
+    public bool IsRecordigsExist()
     {
         return recordings != null && recordings.Count > 0;
     }
@@ -79,30 +81,48 @@ public class RecordingService : MonoBehaviour
         }
     }
 
-    public List<List<CameraStep>> GetAllRecordings()
+    public Dictionary<string, List<CameraStep>> GetAllRecordings()
     {
         return recordings;
     }
 
-    public void SaveCurrentRecordingToFile()
+    public string SaveCurrentRecordingToFile()
     {
         string json = JsonConvert.SerializeObject(currentRecording);
-        if(!Directory.Exists(recordingsPath))
-            Directory.CreateDirectory(recordingsPath);
+        if(!Directory.Exists(RecordingsPath))
+            Directory.CreateDirectory(RecordingsPath);
 
-        File.WriteAllText(Path.Combine(recordingsPath, "Recording_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".json"), json);
+        var path = Path.Combine(RecordingsPath, "Recording_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".json");
+        File.WriteAllText(path, json);
+        return path;
     }
 
     public void LoadRecordingFiles()
     {
         recordings.Clear();
-        string[] files = Directory.GetFiles(recordingsPath, "*.json");
+        string[] files = Directory.GetFiles(RecordingsPath, "*.json");
 
         foreach (var file in files)
         {
+            var name = Path.GetFileNameWithoutExtension(file);
             string json = File.ReadAllText(file);
             List<CameraStep> recording = JsonConvert.DeserializeObject<List<CameraStep>>(json);
-            recordings.Add(recording);
+            recordings.Add(name, recording);
         }
+    }
+
+    public List<CameraStep> LoadRecordingFromFile(string path)
+    {
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            return JsonConvert.DeserializeObject<List<CameraStep>>(json);
+        }
+        return null;
+    }
+
+    public void UpdateCurrentRecording(int index)
+    {
+        currentRecording = GetRecordingByIndex(index);
     }
 }
